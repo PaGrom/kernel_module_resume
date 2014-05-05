@@ -7,12 +7,12 @@ MODULE_AUTHOR("Pavel Gromov <pagrom23@gmail.com>");
 MODULE_DESCRIPTION("My resume in linux kernel module format");
 MODULE_LICENSE("GPL");
 
-int init(void);
-void cleanup(void);
-static int device_open(struct inode *, struct file *);
-static int device_release(struct inode *, struct file *);
-static ssize_t device_read(struct file *, char *, size_t, loff_t *);
-static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
+int resume_init_module(void);
+void resume_cleanup_module(void);
+static int resume_device_open(struct inode *, struct file *);
+static int resume_device_release(struct inode *, struct file *);
+static ssize_t resume_device_read(struct file *, char *, size_t, loff_t *);
+static ssize_t resume_device_write(struct file *, const char *, size_t, loff_t *);
 
 #define SUCCESS 0
 #define DEVICE_NAME "resume"  /* Dev name as it appears in /proc/devices   */
@@ -27,16 +27,16 @@ static char msg[BUF_LEN];    /* The msg the device will give when asked    */
 static char *msg_Ptr;
 
 static struct file_operations fops = {
-	.read = device_read,
-	.write = device_write,
-	.open = device_open,
-	.release = device_release
+	.read = resume_device_read,
+	.write = resume_device_write,
+	.open = resume_device_open,
+	.release = resume_device_release
 };
 
 
 /* Functions */
 
-int init(void) {
+int resume_init_module(void) {
 
 	Major = register_chrdev(0, DEVICE_NAME, &fops);
 
@@ -57,14 +57,14 @@ int init(void) {
 	return 0;
 }
 
-void cleanup(void) {
+void resume_cleanup_module(void) {
 	unregister_chrdev(Major, DEVICE_NAME);
 	printk(KERN_DEBUG "Goodbye world\n");
 }
 
 /* Methods */
 
-static int device_open(struct inode *inode, struct file *file)
+static int resume_device_open(struct inode *inode, struct file *file)
 {
 	static int counter = 0;
 	if (Device_Open)
@@ -79,7 +79,7 @@ static int device_open(struct inode *inode, struct file *file)
 
 
 /* Called when a process closes the device file */
-static int device_release(struct inode *inode, struct file *file)
+static int resume_device_release(struct inode *inode, struct file *file)
 {
 	Device_Open --;     /* We're now ready for our next caller */
 
@@ -90,7 +90,7 @@ static int device_release(struct inode *inode, struct file *file)
 /* Called when a process, which already opened the dev file, attempts to
    read from it.
 */
-static ssize_t device_read(struct file *filp,
+static ssize_t resume_device_read(struct file *filp,
    char *buffer,    /* The buffer to fill with data */
    size_t length,   /* The length of the buffer     */
    loff_t *offset)  /* Our offset in the file       */
@@ -119,7 +119,7 @@ static ssize_t device_read(struct file *filp,
 
 
 /*  Called when a process writes to dev file: echo "hi" > /dev/hello */
-static ssize_t device_write(struct file *filp,
+static ssize_t resume_device_write(struct file *filp,
    const char *buff,
    size_t len,
    loff_t *off)
@@ -128,5 +128,5 @@ static ssize_t device_write(struct file *filp,
    return -EINVAL;
 }
 
-module_init(init);
-module_exit(cleanup);
+module_init(resume_init_module);
+module_exit(resume_cleanup_module);
