@@ -1,0 +1,5 @@
+Install:
+	make
+	sudo insmod kernel_module_resume.ko
+Uninstall:
+	sudo rmmod kernel_module_resume 
