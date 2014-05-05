@@ -1,3 +1,5 @@
+My resume in linux kernel module format.
+
 Install:
 	make
 	sudo insmod kernel_module_resume.ko
