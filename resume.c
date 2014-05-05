@@ -3,6 +3,10 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/device.h>
+#include <linux/cdev.h>
+#include <linux/mutex.h>
+
+#include "resume.h"
 
 MODULE_AUTHOR("Pavel Gromov <pagrom23@gmail.com>");
 MODULE_DESCRIPTION("My resume in linux kernel module format");
