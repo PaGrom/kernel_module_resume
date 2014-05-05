@@ -13,6 +13,6 @@ clean:
 else  
 
 $(info Building with KERNELRELEASE = ${KERNELRELEASE}) 
-obj-m += kernel_module_resume.o  
+obj-m += resume.o  
 
 endif

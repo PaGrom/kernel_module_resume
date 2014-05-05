@@ -2,6 +2,6 @@ My resume in linux kernel module format.
 
 Install:
 	make
-	sudo insmod kernel_module_resume.ko
+	sudo insmod resume.ko
 Uninstall:
-	sudo rmmod kernel_module_resume 
+	sudo rmmod resume 
