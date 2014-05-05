@@ -1,6 +1,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
@@ -25,13 +26,17 @@ static ssize_t resume_device_write(struct file *, const char *, size_t, loff_t *
 
 /* Global variables are declared as static, so are global within the file. */
 
+static unsigned long resume_buffer_size = RESUME_BUFFER_SIZE;
+static unsigned long resume_block_size = RESUME_BLOCK_SIZE;
+
 static unsigned int resume_major = 0; /* Major number assigned to our device driver */
 static int Device_Open = 0;
+static struct resume_dev *resume_device = NULL;
 static struct class *resume_class = NULL;
 static char msg[BUF_LEN];    /* The msg the device will give when asked    */
 static char *msg_Ptr;
 
-static struct file_operations fops = {
+static struct file_operations resume_fops = {
 	.read = resume_device_read,
 	.write = resume_device_write,
 	.open = resume_device_open,
@@ -40,6 +45,48 @@ static struct file_operations fops = {
 
 
 /* Functions */
+
+static int
+resume_construct_device(struct resume_dev *dev, int minor, 
+	struct class *class)
+{
+	int err = 0;
+	dev_t devno = MKDEV(resume_major, minor);
+	struct device *device = NULL;
+	
+	BUG_ON(dev == NULL || class == NULL);
+
+	/* Memory is to be allocated when the device is opened the first time */
+	dev->data = NULL;     
+    dev->buffer_size = resume_buffer_size;
+	dev->block_size = resume_block_size;
+	mutex_init(&dev->resume_mutex);
+    
+	cdev_init(&dev->cdev, &resume_fops);
+	dev->cdev.owner = THIS_MODULE;
+    
+	err = cdev_add(&dev->cdev, devno, 1);
+	if (err)
+	{
+		printk(KERN_WARNING "[target] Error %d while trying to add %s%d",
+			err, RESUME_DEVICE_NAME, minor);
+        return err;
+	}
+
+    device = device_create(class, NULL, /* no parent device */ 
+        devno, NULL, /* no additional data */
+        RESUME_DEVICE_NAME "%d", minor);
+
+    if (IS_ERR(device)) {
+        err = PTR_ERR(device);
+        printk(KERN_WARNING "[target] Error %d while trying to create %s%d",
+			err, RESUME_DEVICE_NAME, minor);
+        cdev_del(&dev->cdev);
+        return err;
+    }
+
+	return 0;
+}
 
 int resume_init_module(void) {
 
@@ -68,14 +115,25 @@ int resume_init_module(void) {
 		printk(KERN_WARNING "[target] alloc_chrdev_region() failed\n");
 		return err;
 	}
-    resume_major = MAJOR(dev);
+	resume_major = MAJOR(dev);
 
-    /* Create device class */
-    resume_class = class_create(THIS_MODULE, RESUME_DEVICE_NAME);
-    if (IS_ERR(resume_class)) {
-        err = PTR_ERR(resume_class);
-        goto fail;
-    }
+	/* Create device class */
+	resume_class = class_create(THIS_MODULE, RESUME_DEVICE_NAME);
+	if (IS_ERR(resume_class)) {
+		err = PTR_ERR(resume_class);
+		goto fail;
+	}
+
+	resume_device = (struct resume_dev *)kzalloc(
+		sizeof(struct resume_dev), GFP_KERNEL);
+	if (resume_device == NULL) {
+		err = -ENOMEM;
+		goto fail;
+	}
+
+	err = resume_construct_device(resume_device, 0, resume_class);
+	if (err)
+		goto fail;
 	
 	return 0;
 
